@@ -1,12 +1,15 @@
 package org.danp.exam3grupoa
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.util.Size
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -18,6 +21,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.experimental.and
+
+
+typealias LumaListener = (luma: Double) -> Unit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -83,6 +90,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    @SuppressLint("UnsafeOptInUsageError")
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
@@ -96,13 +104,31 @@ class MainActivity : AppCompatActivity() {
                 }
 
             imageCapture = ImageCapture.Builder().build()
-            
+
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(1280, 720))
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor) { image ->
+                        val buffer = image.image!!.planes[0].buffer
+                        val R: Byte = buffer[0] and 0xff.toByte()
+                        val G: Byte = buffer[1] and 0xff.toByte()
+                        val B: Byte = buffer[2] and 0xff.toByte()
+
+                        Log.e("RED", "" + R)
+
+
+                    }
+                }
+
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture
+                    this, cameraSelector, preview, imageCapture, imageAnalysis
                 )
 
             } catch (exc: Exception) {
@@ -164,5 +190,22 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+}
+
+private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
+
+    @SuppressLint("UnsafeOptInUsageError")
+    override fun analyze(image: ImageProxy) {
+
+        if (image.format == PixelFormat.RGBA_8888) {
+            val buffer = image.image!!.planes[0].buffer
+            val R: Byte = buffer[0] and 0xff.toByte()
+            val G: Byte = buffer[1] and 0xff.toByte()
+            val B: Byte = buffer[2] and 0xff.toByte()
+
+            Log.e("RED", "" + R)
+
+        }
+    }
 }
 

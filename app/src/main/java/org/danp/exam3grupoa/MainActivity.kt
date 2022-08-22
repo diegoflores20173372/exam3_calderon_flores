@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -21,15 +20,15 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.experimental.and
 
 
-typealias LumaListener = (luma: Double) -> Unit
+typealias LumaListener = (luma: Int) -> Unit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private var imageCapture: ImageCapture? = null
     private lateinit var cameraExecutor: ExecutorService
+    private var arr_red_counter = IntArray(256) { 0 }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,16 +110,11 @@ class MainActivity : AppCompatActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor) { image ->
-                        val buffer = image.image!!.planes[0].buffer
-                        val R: Byte = buffer[0] and 0xff.toByte()
-                        val G: Byte = buffer[1] and 0xff.toByte()
-                        val B: Byte = buffer[2] and 0xff.toByte()
-
-                        Log.e("RED", "" + R)
-
-
-                    }
+                    it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
+                        arr_red_counter[luma] += 1
+                        Log.e(TAG, "Color Rojo: $luma")
+                        Log.e(TAG, "Array en Rojo: ${arr_red_counter.contentToString()}")
+                    })
                 }
 
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -196,16 +190,12 @@ private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnal
 
     @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(image: ImageProxy) {
-
-        if (image.format == PixelFormat.RGBA_8888) {
-            val buffer = image.image!!.planes[0].buffer
-            val R: Byte = buffer[0] and 0xff.toByte()
-            val G: Byte = buffer[1] and 0xff.toByte()
-            val B: Byte = buffer[2] and 0xff.toByte()
-
-            Log.e("RED", "" + R)
-
-        }
+        val buffer = image.image!!.planes[0].buffer
+        val R: Int = buffer[0].toInt() and 0xff
+        val G: Int = buffer[1].toInt() and 0xff
+        val B: Int = buffer[2].toInt() and 0xff
+        listener(R)
+        image.close()
     }
 }
 

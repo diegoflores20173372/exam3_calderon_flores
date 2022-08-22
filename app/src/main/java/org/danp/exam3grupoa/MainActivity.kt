@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
+                    it.setAnalyzer(cameraExecutor, CounterAnalyzer { luma ->
                         arr_red_counter[luma] += 1
                         Log.e(TAG, "Color Rojo: $luma")
                         Log.e(TAG, "Array en Rojo: ${arr_red_counter.contentToString()}")
@@ -186,7 +186,7 @@ class MainActivity : AppCompatActivity() {
 
 }
 
-private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
+private class CounterAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
 
     @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(image: ImageProxy) {
